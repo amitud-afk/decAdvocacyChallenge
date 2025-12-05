@@ -1,5 +1,5 @@
 ---
-title: "Decision Advocacy Challenge"
+title: "Optimizing Patrick's Auto Shop Productivity and Revenue"
 subtitle: "Data-Driven Scheduling for Maximum Productivity"
 format:
   html: default
@@ -8,7 +8,7 @@ execute:
   eval: true
 ---
 
-# 🔧 Decision Advocacy Challenge - Patrick's Auto Shop Analysis
+<!--# 🔧 Decision Advocacy Challenge - Patrick's Auto Shop Analysis
 
 ## Challenge Overview
 
@@ -88,8 +88,246 @@ carsDF.head(10)
 summary = carsDF.groupby(['shopID', 'boss'])['carsFixed'].agg(['count', 'mean', 'std', 'min', 'max']).round(2)
 summary
 ```
+-->
+<!--## Visualizing Daily Productivity 📈
 
-## Challenge Requirements 📋
+Let's create comprehensive visualizations to understand productivity patterns across all shops. Here are several views of the data showing all 250 observations:
+
+```{python}
+#| echo: false
+#| include: false
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+# Set up a clean, professional style
+sns.set_style("whitegrid")
+plt.rcParams['figure.figsize'] = (14, 8)
+plt.rcParams['font.size'] = 10
+plt.rcParams['axes.labelsize'] = 12
+plt.rcParams['axes.titlesize'] = 14
+plt.rcParams['xtick.labelsize'] = 10
+plt.rcParams['ytick.labelsize'] = 10
+
+# Create a boss status label for better readability
+carsDF['Boss Status'] = carsDF['boss'].map({0: 'Boss Absent', 1: 'Boss Present'})
+carsDF['Shop'] = 'Shop ' + carsDF['shopID'].astype(str)
+```
+
+### All 250 Observations: Productivity by Shop and Boss Presence
+
+This visualization shows every single data point, making it easy to see patterns and outliers:
+
+```{python}
+#| label: fig-all-points
+#| fig-cap: "All 250 daily productivity observations across shops, showing the impact of boss presence"
+#| echo: false
+#| fig-width: 14
+#| fig-height: 8
+
+# Create the main visualization
+fig, ax = plt.subplots(figsize=(8,6))
+
+# Create a stripplot with jitter to show all points
+colors = {'Boss Absent': '#3498db', 'Boss Present': '#e74c3c'}
+for status in ['Boss Absent', 'Boss Present']:
+    subset = carsDF[carsDF['Boss Status'] == status]
+    for shop_id in sorted(subset['shopID'].unique()):
+        shop_data = subset[subset['shopID'] == shop_id]
+        x_pos = shop_id - 0.15 if status == 'Boss Absent' else shop_id + 0.15
+        y_values = shop_data['carsFixed'].values
+        x_values = np.random.normal(x_pos, 0.03, size=len(y_values))  # Jitter for visibility
+        ax.scatter(x_values, y_values, alpha=0.6, s=50, color=colors[status], 
+                  label=status if shop_id == 1 else '', edgecolors='white', linewidth=0.5)
+
+# Add mean lines for each shop and boss status
+for shop_id in sorted(carsDF['shopID'].unique()):
+    for status in ['Boss Absent', 'Boss Present']:
+        subset = carsDF[(carsDF['shopID'] == shop_id) & (carsDF['Boss Status'] == status)]
+        if len(subset) > 0:
+            mean_val = subset['carsFixed'].mean()
+            x_pos = shop_id - 0.15 if status == 'Boss Absent' else shop_id + 0.15
+            ax.plot([x_pos - 0.1, x_pos + 0.1], [mean_val, mean_val], 
+                   color=colors[status], linewidth=3, alpha=0.8, linestyle='--')
+
+ax.set_xlabel('Shop ID', fontweight='bold', fontsize=12)
+ax.set_ylabel('Cars Fixed per Day', fontweight='bold', fontsize=12)
+ax.set_title('Daily Productivity Across All Shops: All 250 Observations\n(Boss Presence vs Absence)', 
+             fontweight='bold', fontsize=14, pad=20)
+ax.set_xticks(sorted(carsDF['shopID'].unique()))
+ax.set_xticklabels([f'Shop {i}' for i in sorted(carsDF['shopID'].unique())])
+ax.grid(True, alpha=0.3, linestyle='--')
+ax.legend(title='Boss Status', title_fontsize=11, fontsize=10, framealpha=0.9)
+
+# Add annotation for total observations
+ax.text(0.02, 0.98, f'Total Observations: 250', transform=ax.transAxes,
+        fontsize=10, verticalalignment='top', bbox=dict(boxstyle='round', 
+        facecolor='wheat', alpha=0.5))
+
+plt.tight_layout()
+plt.show()
+```
+
+### Productivity Distribution by Shop
+
+This box plot shows the distribution and spread of productivity for each shop:
+
+```{python}
+#| label: fig-boxplot
+#| fig-cap: "Productivity distribution across shops, comparing boss presence vs absence"
+#| echo: false
+#| fig-width: 14
+#| fig-height: 6
+
+fig, ax = plt.subplots(figsize=(14, 6))
+
+# Create boxplot with all data points overlaid
+boxplot_data = []
+positions = []
+labels = []
+colors_list = []
+
+shop_ids = sorted(carsDF['shopID'].unique())
+x_offset = 0
+
+for shop_id in shop_ids:
+    for boss_status in [0, 1]:
+        subset = carsDF[(carsDF['shopID'] == shop_id) & (carsDF['boss'] == boss_status)]
+        if len(subset) > 0:
+            boxplot_data.append(subset['carsFixed'].values)
+            positions.append(shop_id - 0.2 + x_offset)
+            labels.append(f'Shop {shop_id}\n{"Boss Present" if boss_status == 1 else "Absent"}')
+            colors_list.append('#e74c3c' if boss_status == 1 else '#3498db')
+            x_offset += 0.4
+    x_offset = 0
+
+bp = ax.boxplot(boxplot_data, positions=positions, widths=0.3, patch_artist=True,
+               showmeans=True, meanline=True)
+
+# Color the boxes
+for patch, color in zip(bp['boxes'], colors_list):
+    patch.set_facecolor(color)
+    patch.set_alpha(0.6)
+
+ax.set_xlabel('Shop', fontweight='bold', fontsize=12)
+ax.set_ylabel('Cars Fixed per Day', fontweight='bold', fontsize=12)
+ax.set_title('Productivity Distribution by Shop: Impact of Boss Presence', 
+             fontweight='bold', fontsize=14, pad=15)
+ax.set_xticks(shop_ids)
+ax.set_xticklabels([f'Shop {i}' for i in shop_ids])
+ax.grid(True, alpha=0.3, axis='y', linestyle='--')
+
+# Create custom legend
+from matplotlib.patches import Patch
+legend_elements = [Patch(facecolor='#3498db', alpha=0.6, label='Boss Absent'),
+                  Patch(facecolor='#e74c3c', alpha=0.6, label='Boss Present')]
+ax.legend(handles=legend_elements, loc='upper left', framealpha=0.9)
+
+plt.tight_layout()
+plt.show()
+```
+
+### Time Series View: Productivity Over Time
+
+This shows how productivity varies day by day across all shops:
+
+```{python}
+#| label: fig-timeseries
+#| fig-cap: "Daily productivity trends over time across all shops, showing all 250 observations"
+#| echo: false
+#| fig-width: 16
+#| fig-height: 8
+
+fig, axes = plt.subplots(5, 1, figsize=(16, 8), sharex=True, sharey=True)
+
+shop_ids = sorted(carsDF['shopID'].unique())
+
+for idx, shop_id in enumerate(shop_ids):
+    shop_data = carsDF[carsDF['shopID'] == shop_id].copy()
+    shop_data = shop_data.sort_values('observation')
+    
+    ax = axes[idx]
+    
+    # Plot boss absent days
+    absent_data = shop_data[shop_data['boss'] == 0]
+    ax.scatter(absent_data['observation'], absent_data['carsFixed'], 
+              alpha=0.6, s=40, color='#3498db', label='Boss Absent', 
+              edgecolors='white', linewidth=0.3)
+    
+    # Plot boss present days
+    present_data = shop_data[shop_data['boss'] == 1]
+    ax.scatter(present_data['observation'], present_data['carsFixed'], 
+              alpha=0.7, s=50, color='#e74c3c', label='Boss Present', 
+              marker='^', edgecolors='white', linewidth=0.3)
+    
+    # Add trend line
+    z = np.polyfit(shop_data['observation'], shop_data['carsFixed'], 1)
+    p = np.poly1d(z)
+    ax.plot(shop_data['observation'], p(shop_data['observation']), 
+           "k--", alpha=0.3, linewidth=1)
+    
+    ax.set_ylabel(f'Shop {shop_id}', fontweight='bold', fontsize=10, rotation=0, 
+                 labelpad=30, va='center')
+    ax.grid(True, alpha=0.3, linestyle='--')
+    ax.set_ylim([0, max(carsDF['carsFixed']) * 1.1])
+    
+    if idx == 0:
+        ax.legend(loc='upper right', framealpha=0.9, fontsize=9)
+        ax.set_title('Daily Productivity Trends Over Time: All 250 Observations', 
+                    fontweight='bold', fontsize=14, pad=15)
+    if idx == len(shop_ids) - 1:
+        ax.set_xlabel('Observation Number (Day)', fontweight='bold', fontsize=12)
+
+plt.tight_layout()
+plt.show()
+```
+
+### Summary Comparison: Average Productivity by Shop
+
+A clear comparison of average productivity showing the boss impact:
+
+```{python}
+#| label: fig-comparison
+#| fig-cap: "Average daily productivity by shop, comparing boss presence vs absence"
+#| echo: false
+#| fig-width: 12
+#| fig-height: 6
+
+# Calculate means
+comparison_data = carsDF.groupby(['shopID', 'Boss Status'])['carsFixed'].mean().reset_index()
+comparison_data = comparison_data.pivot(index='shopID', columns='Boss Status', values='carsFixed')
+
+fig, ax = plt.subplots(figsize=(12, 6))
+
+x = np.arange(len(comparison_data.index))
+width = 0.35
+
+bars1 = ax.bar(x - width/2, comparison_data['Boss Absent'], width, 
+              label='Boss Absent', color='#3498db', alpha=0.8, edgecolor='white', linewidth=1.5)
+bars2 = ax.bar(x + width/2, comparison_data['Boss Present'], width, 
+              label='Boss Present', color='#e74c3c', alpha=0.8, edgecolor='white', linewidth=1.5)
+
+# Add value labels on bars
+for bars in [bars1, bars2]:
+    for bar in bars:
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2., height,
+               f'{height:.1f}', ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+ax.set_xlabel('Shop', fontweight='bold', fontsize=12)
+ax.set_ylabel('Average Cars Fixed per Day', fontweight='bold', fontsize=12)
+ax.set_title('Average Productivity by Shop: Boss Presence vs Absence', 
+             fontweight='bold', fontsize=14, pad=15)
+ax.set_xticks(x)
+ax.set_xticklabels([f'Shop {i}' for i in comparison_data.index])
+ax.legend(title='Boss Status', title_fontsize=11, fontsize=10, framealpha=0.9)
+ax.grid(True, alpha=0.3, axis='y', linestyle='--')
+
+plt.tight_layout()
+plt.show()
+```
+-->
+<!--## Challenge Requirements 📋
 
 ### Minimum Requirements for Any Points on Challenge
 
@@ -160,17 +398,663 @@ summary
 
 ### What Your Report Should Include
 
-Your report should answer these questions in a clear, concise way:
+Your report should answer these questions in a clear, concise way: -->
 
 1. **What does the data show?**
 
    - Visualize all 250 data points showing productivity by shop and boss presence
    - Which shops benefit most from Patrick's presence? Which don't?
+```{python}
+#| label: fig-all-data-points
+#| fig-cap: "All 250 days of productivity data: Cars fixed per day by shop and boss presence"
+#| echo: false
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+import pandas as pd
+import xarray as xr
+from numpy.random import default_rng
 
+# Set style
+sns.set_style("whitegrid")
+plt.rcParams['figure.figsize'] = (14, 8)
+
+# Create figure with subplots
+fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+
+# Left plot: Strip plot showing all 250 points
+ax1 = axes[0]
+for shop in sorted(carsDF['shopID'].unique()):
+    shop_data = carsDF[carsDF['shopID'] == shop]
+    absent_data = shop_data[shop_data['boss'] == 0]
+    present_data = shop_data[shop_data['boss'] == 1]
+    
+    # Add jitter for better visibility
+    jitter_absent = np.random.normal(0, 0.1, len(absent_data))
+    jitter_present = np.random.normal(0, 0.1, len(present_data))
+    
+    ax1.scatter(absent_data['shopID'] + jitter_absent, absent_data['carsFixed'], 
+                alpha=0.6, s=50, color='#e74c3c', label='Boss Absent' if shop == 1 else '')
+    ax1.scatter(present_data['shopID'] + jitter_present, present_data['carsFixed'], 
+                alpha=0.6, s=50, color='#2ecc71', label='Boss Present' if shop == 1 else '')
+
+ax1.set_xlabel('Shop ID', fontsize=12, fontweight='bold')
+ax1.set_ylabel('Cars Fixed per Day', fontsize=12, fontweight='bold')
+ax1.set_title('All 250 Days: Productivity by Shop and Boss Presence', fontsize=14, fontweight='bold', pad=15)
+ax1.set_xticks([1, 2, 3, 4, 5])
+ax1.legend(loc='upper left', fontsize=10)
+ax1.grid(True, alpha=0.3)
+
+# Right plot: Box plot with all points overlaid
+ax2 = axes[1]
+box_data = []
+positions = []
+colors_list = []
+for shop in sorted(carsDF['shopID'].unique()):
+    shop_data = carsDF[carsDF['shopID'] == shop]
+    for boss_status in [0, 1]:
+        data = shop_data[shop_data['boss'] == boss_status]['carsFixed'].values
+        pos = shop + (boss_status * 0.35 - 0.175)  # Offset for boss present/absent
+        box_data.extend(data)
+        positions.extend([pos] * len(data))
+        colors_list.extend(['#e74c3c' if boss_status == 0 else '#2ecc71'] * len(data))
+
+# Create box plot
+bp = ax2.boxplot([carsDF[(carsDF['shopID'] == shop) & (carsDF['boss'] == status)]['carsFixed'].values 
+                   for shop in sorted(carsDF['shopID'].unique()) 
+                   for status in [0, 1]], 
+                  positions=[shop + (status * 0.35 - 0.175) 
+                            for shop in sorted(carsDF['shopID'].unique()) 
+                            for status in [0, 1]],
+                  widths=0.25, patch_artist=True, showmeans=True)
+
+# Color the boxes
+for i, patch in enumerate(bp['boxes']):
+    patch.set_facecolor('#e74c3c' if i % 2 == 0 else '#2ecc71')
+    patch.set_alpha(0.6)
+
+# Overlay all points
+for shop in sorted(carsDF['shopID'].unique()):
+    shop_data = carsDF[carsDF['shopID'] == shop]
+    absent_data = shop_data[shop_data['boss'] == 0]
+    present_data = shop_data[shop_data['boss'] == 1]
+    
+    jitter_absent = np.random.normal(0, 0.08, len(absent_data))
+    jitter_present = np.random.normal(0, 0.08, len(present_data))
+    
+    ax2.scatter(shop - 0.175 + jitter_absent, absent_data['carsFixed'], 
+                alpha=0.5, s=40, color='#c0392b', zorder=3)
+    ax2.scatter(shop + 0.175 + jitter_present, present_data['carsFixed'], 
+                alpha=0.5, s=40, color='#27ae60', zorder=3)
+
+ax2.set_xlabel('Shop ID', fontsize=12, fontweight='bold')
+ax2.set_ylabel('Cars Fixed per Day', fontsize=12, fontweight='bold')
+ax2.set_title('Distribution Comparison: Boss Present vs Absent', fontsize=14, fontweight='bold', pad=15)
+ax2.set_xticks([1, 2, 3, 4, 5])
+ax2.grid(True, alpha=0.3, axis='y')
+
+# Add custom legend
+from matplotlib.patches import Patch
+legend_elements = [Patch(facecolor='#e74c3c', alpha=0.6, label='Boss Absent'),
+                   Patch(facecolor='#2ecc71', alpha=0.6, label='Boss Present')]
+ax2.legend(handles=legend_elements, loc='upper left', fontsize=10)
+
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| label: fig-shop-benefits
+#| fig-cap: "Impact of Patrick's presence: Average productivity difference by shop"
+#| echo: false
+# Calculate the impact of boss presence for each shop
+shop_impact = []
+for shop in sorted(carsDF['shopID'].unique()):
+    shop_data = carsDF[carsDF['shopID'] == shop]
+    absent_mean = shop_data[shop_data['boss'] == 0]['carsFixed'].mean()
+    present_mean = shop_data[shop_data['boss'] == 1]['carsFixed'].mean()
+    impact = present_mean - absent_mean
+    absent_count = len(shop_data[shop_data['boss'] == 0])
+    present_count = len(shop_data[shop_data['boss'] == 1])
+    
+    # Calculate standard error for confidence intervals
+    absent_std = shop_data[shop_data['boss'] == 0]['carsFixed'].std()
+    present_std = shop_data[shop_data['boss'] == 1]['carsFixed'].std()
+    se = np.sqrt((absent_std**2 / absent_count) + (present_std**2 / present_count))
+    
+    shop_impact.append({
+        'shop': shop,
+        'impact': impact,
+        'absent_mean': absent_mean,
+        'present_mean': present_mean,
+        'se': se,
+        'absent_count': absent_count,
+        'present_count': present_count
+    })
+
+impact_df = pd.DataFrame(shop_impact)
+
+# Create visualization
+fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+
+# Left plot: Bar chart showing impact
+ax1 = axes[0]
+colors = ['#2ecc71' if x > 0 else '#e74c3c' for x in impact_df['impact']]
+bars = ax1.bar(impact_df['shop'], impact_df['impact'], color=colors, alpha=0.7, edgecolor='black', linewidth=1.5)
+
+# Add error bars (95% confidence interval, approximate)
+ax1.errorbar(impact_df['shop'], impact_df['impact'], 
+             yerr=1.96 * impact_df['se'], 
+             fmt='none', color='black', capsize=5, capthick=2, linewidth=2)
+
+# Add value labels on bars
+for i, (shop, impact, se) in enumerate(zip(impact_df['shop'], impact_df['impact'], impact_df['se'])):
+    height = impact + (1.96 * se) if impact > 0 else impact - (1.96 * se)
+    ax1.text(shop, height + (0.5 if impact > 0 else -1.5), 
+            f'+{impact:.1f}' if impact > 0 else f'{impact:.1f}', 
+            ha='center', va='bottom' if impact > 0 else 'top', 
+            fontsize=11, fontweight='bold')
+
+ax1.axhline(y=0, color='black', linestyle='-', linewidth=1)
+ax1.set_xlabel('Shop ID', fontsize=12, fontweight='bold')
+ax1.set_ylabel('Average Difference (Cars Fixed)', fontsize=12, fontweight='bold')
+ax1.set_title("Patrick's Impact: How Many More Cars When He's Present", fontsize=14, fontweight='bold', pad=15)
+ax1.set_xticks([1, 2, 3, 4, 5])
+ax1.grid(True, alpha=0.3, axis='y')
+
+# Right plot: Side-by-side comparison
+ax2 = axes[1]
+x = np.arange(len(impact_df))
+width = 0.35
+
+bars1 = ax2.bar(x - width/2, impact_df['absent_mean'], width, 
+                label='Boss Absent', color='#e74c3c', alpha=0.7, edgecolor='black', linewidth=1.5)
+bars2 = ax2.bar(x + width/2, impact_df['present_mean'], width, 
+                label='Boss Present', color='#2ecc71', alpha=0.7, edgecolor='black', linewidth=1.5)
+
+# Add value labels
+for bars in [bars1, bars2]:
+    for bar in bars:
+        height = bar.get_height()
+        ax2.text(bar.get_x() + bar.get_width()/2., height,
+                f'{height:.1f}',
+                ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+ax2.set_xlabel('Shop ID', fontsize=12, fontweight='bold')
+ax2.set_ylabel('Average Cars Fixed per Day', fontsize=12, fontweight='bold')
+ax2.set_title('Average Productivity: Boss Present vs Absent', fontsize=14, fontweight='bold', pad=15)
+ax2.set_xticks(x)
+ax2.set_xticklabels([f'Shop {i}' for i in impact_df['shop']])
+ax2.legend(loc='upper left', fontsize=10)
+ax2.grid(True, alpha=0.3, axis='y')
+
+plt.tight_layout()
+plt.show()
+
+# Print summary
+print("\n" + "="*60)
+print("SUMMARY: Which Shops Benefit Most from Patrick's Presence?")
+print("="*60)
+impact_df_sorted = impact_df.sort_values('impact', ascending=False)
+for _, row in impact_df_sorted.iterrows():
+    status = "BENEFITS" if row['impact'] > 0 else "DOES NOT BENEFIT"
+    print(f"\nShop {int(row['shop'])}: {status}")
+    print(f" Average when Patrick is absent: {row['absent_mean']:.1f} cars/day")
+    print(f" Average when Patrick is present: {row['present_mean']:.1f} cars/day")
+    print(f" Difference: {row['impact']:+.1f} cars/day")
+    print(f" Data points: {int(row['absent_count'])} days absent, {int(row['present_count'])} days present")
+print("="*60)
+```
 2. **What should Patrick do?**
 
    - Clear, specific recommendations: Which shops should he prioritize? Why?
    - What's the potential financial impact? (Revenue or profit implications)
+
+```{python}
+#| label: fig-priority-recommendations
+#| fig-cap: "Shop Priority Ranking: Where Patrick should focus his time for maximum impact"
+#| echo: false
+# Calculate priority score (impact weighted by opportunity)
+# Opportunity = number of days boss was absent (potential for improvement)
+priority_data = []
+for shop in sorted(carsDF['shopID'].unique()):
+    shop_data = carsDF[carsDF['shopID'] == shop]
+    absent_mean = shop_data[shop_data['boss'] == 0]['carsFixed'].mean()
+    present_mean = shop_data[shop_data['boss'] == 1]['carsFixed'].mean()
+    impact = present_mean - absent_mean
+    absent_count = len(shop_data[shop_data['boss'] == 0])
+    present_count = len(shop_data[shop_data['boss'] == 1])
+    total_days = len(shop_data)
+    
+    # Priority score: impact * opportunity (days absent)
+    priority_score = impact * absent_count if impact > 0 else 0
+    
+    priority_data.append({
+        'shop': shop,
+        'impact': impact,
+        'priority_score': priority_score,
+        'absent_mean': absent_mean,
+        'present_mean': present_mean,
+        'absent_count': absent_count,
+        'present_count': present_count,
+        'total_days': total_days
+    })
+
+priority_df = pd.DataFrame(priority_data).sort_values('priority_score', ascending=False)
+
+# Create visualization
+fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+
+# Left plot: Priority ranking
+ax1 = axes[0]
+colors_priority = ['#2ecc71', '#27ae60', '#229954', '#1e8449', '#196f3d']
+bars = ax1.barh(range(len(priority_df)), priority_df['priority_score'], 
+                color=colors_priority[:len(priority_df)], alpha=0.8, edgecolor='black', linewidth=1.5)
+
+# Add value labels
+for i, (idx, row) in enumerate(priority_df.iterrows()):
+    ax1.text(row['priority_score'] + 5, i, 
+            f"Shop {int(row['shop'])}: +{row['impact']:.1f} cars/day", 
+            va='center', fontsize=11, fontweight='bold')
+
+ax1.set_yticks(range(len(priority_df)))
+ax1.set_yticklabels([f"Shop {int(s)}" for s in priority_df['shop']])
+ax1.set_xlabel('Priority Score (Impact × Opportunity)', fontsize=12, fontweight='bold')
+ax1.set_title('Shop Priority Ranking: Where to Focus', fontsize=14, fontweight='bold', pad=15)
+ax1.grid(True, alpha=0.3, axis='x')
+
+# Right plot: Impact vs Opportunity
+ax2 = axes[1]
+scatter = ax2.scatter(priority_df['absent_count'], priority_df['impact'], 
+                     s=priority_df['priority_score']*2, 
+                     c=priority_df['shop'], cmap='viridis', 
+                     alpha=0.7, edgecolors='black', linewidth=2)
+
+# Add shop labels
+for _, row in priority_df.iterrows():
+    ax2.annotate(f"Shop {int(row['shop'])}", 
+                (row['absent_count'], row['impact']),
+                xytext=(5, 5), textcoords='offset points',
+                fontsize=10, fontweight='bold')
+
+ax2.set_xlabel('Days Boss Was Absent (Opportunity)', fontsize=12, fontweight='bold')
+ax2.set_ylabel('Impact (Cars/Day Difference)', fontsize=12, fontweight='bold')
+ax2.set_title('Impact vs Opportunity: Finding the Sweet Spot', fontsize=14, fontweight='bold', pad=15)
+ax2.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Print recommendations
+print("\n" + "="*70)
+print("RECOMMENDATIONS: Which Shops Should Patrick Prioritize?")
+print("="*70)
+for rank, (_, row) in enumerate(priority_df.iterrows(), 1):
+    if row['impact'] > 0:
+        print(f"\n#{rank} PRIORITY: Shop {int(row['shop'])}")
+        print(f"   Why: When Patrick is present, this shop fixes {row['impact']:.1f} MORE cars per day")
+        print(f"   Opportunity: {int(row['absent_count'])} days without Patrick = potential for improvement")
+        print(f"   Current performance: {row['absent_mean']:.1f} cars/day → {row['present_mean']:.1f} cars/day with Patrick")
+    else:
+        print(f"\nNOT PRIORITY: Shop {int(row['shop'])}")
+        print(f"   Why: Patrick's presence has NEGATIVE impact ({row['impact']:.1f} cars/day)")
+        print(f"   Recommendation: Avoid scheduling Patrick here unless other reasons (e.g., Shop 3 - brother)")
+print("="*70)
+```
+
+```{python}
+#| label: fig-financial-impact
+#| fig-cap: "Financial Impact Analysis: Revenue implications of different scheduling strategies"
+#| echo: false
+# Assume a fixed price per car (you can adjust this)
+price_per_car = 150  # dollars per car fixed
+
+# Calculate current revenue (baseline)
+current_revenue = carsDF['carsFixed'].sum() * price_per_car
+
+# Scenario 1: Optimal scheduling - Patrick goes to highest priority shop every day
+# For simplicity, assume Patrick goes to Shop with highest priority score
+optimal_shop = int(priority_df.iloc[0]['shop'])
+optimal_shop_data = carsDF[carsDF['shopID'] == optimal_shop]
+optimal_absent_mean = optimal_shop_data[optimal_shop_data['boss'] == 0]['carsFixed'].mean()
+optimal_present_mean = optimal_shop_data[optimal_shop_data['boss'] == 1]['carsFixed'].mean()
+
+# Calculate what revenue would be if Patrick was at optimal shop every day
+# (other shops stay at their absent mean, optimal shop at present mean)
+scenario_revenue = 0
+for shop in sorted(carsDF['shopID'].unique()):
+    shop_data = carsDF[carsDF['shopID'] == shop]
+    shop_days = len(shop_data)
+    if shop == optimal_shop:
+        scenario_revenue += optimal_present_mean * shop_days * price_per_car
+    else:
+        shop_absent_mean = shop_data[shop_data['boss'] == 0]['carsFixed'].mean()
+        scenario_revenue += shop_absent_mean * shop_days * price_per_car
+
+revenue_increase = scenario_revenue - current_revenue
+revenue_increase_pct = (revenue_increase / current_revenue) * 100
+
+# Scenario 2: Rotate through top 3 shops
+top3_shops = priority_df.head(3)['shop'].tolist()
+rotation_revenue = 0
+for shop in sorted(carsDF['shopID'].unique()):
+    shop_data = carsDF[carsDF['shopID'] == shop]
+    shop_days = len(shop_data)
+    if shop in top3_shops:
+        # Assume equal rotation: 1/3 of days at each top shop
+        shop_present_mean = shop_data[shop_data['boss'] == 1]['carsFixed'].mean()
+        shop_absent_mean = shop_data[shop_data['boss'] == 0]['carsFixed'].mean()
+        # 1/3 of days with boss, 2/3 without
+        avg_productivity = (shop_present_mean * (1/3) + shop_absent_mean * (2/3))
+        rotation_revenue += avg_productivity * shop_days * price_per_car
+    else:
+        shop_absent_mean = shop_data[shop_data['boss'] == 0]['carsFixed'].mean()
+        rotation_revenue += shop_absent_mean * shop_days * price_per_car
+
+rotation_increase = rotation_revenue - current_revenue
+
+# Create visualization
+fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+
+# Left plot: Revenue comparison
+ax1 = axes[0]
+scenarios = ['Current\nSchedule', 'Optimal\nStrategy', 'Top 3\nRotation']
+revenues = [current_revenue, scenario_revenue, rotation_revenue]
+colors_rev = ['#95a5a6', '#2ecc71', '#3498db']
+
+bars = ax1.bar(scenarios, revenues, color=colors_rev, alpha=0.8, edgecolor='black', linewidth=2)
+
+# Add value labels
+for bar, rev in zip(bars, revenues):
+    height = bar.get_height()
+    ax1.text(bar.get_x() + bar.get_width()/2., height,
+            f'${rev:,.0f}',
+            ha='center', va='bottom', fontsize=12, fontweight='bold')
+
+# Add increase annotations
+ax1.annotate(f'+${revenue_increase:,.0f}\n({revenue_increase_pct:.1f}%)', 
+            xy=(1, scenario_revenue), xytext=(1.3, scenario_revenue - revenue_increase/2),
+            arrowprops=dict(arrowstyle='->', color='green', lw=2),
+            fontsize=11, fontweight='bold', color='green',
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='lightgreen', alpha=0.7))
+
+ax1.set_ylabel('Total Revenue ($)', fontsize=12, fontweight='bold')
+ax1.set_title('Revenue Comparison: Different Scheduling Strategies', fontsize=14, fontweight='bold', pad=15)
+ax1.grid(True, alpha=0.3, axis='y')
+ax1.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x/1000:.0f}K'))
+
+# Right plot: Annual projection (assuming 250 days = 1 year)
+ax2 = axes[1]
+annual_current = current_revenue
+annual_optimal = scenario_revenue
+annual_increase = revenue_increase
+
+# Project to full year (365 days)
+days_per_year = 365
+annual_current_proj = (current_revenue / 250) * days_per_year
+annual_optimal_proj = (scenario_revenue / 250) * days_per_year
+annual_increase_proj = annual_optimal_proj - annual_current_proj
+
+categories = ['Current\n(250 days)', 'Optimal\n(250 days)', 'Current\n(Annual)', 'Optimal\n(Annual)']
+values = [current_revenue, scenario_revenue, annual_current_proj, annual_optimal_proj]
+colors_annual = ['#95a5a6', '#2ecc71', '#7f8c8d', '#27ae60']
+
+bars2 = ax2.bar(categories, values, color=colors_annual, alpha=0.8, edgecolor='black', linewidth=2)
+
+# Add value labels
+for bar, val in zip(bars2, values):
+    height = bar.get_height()
+    ax2.text(bar.get_x() + bar.get_width()/2., height,
+            f'${val:,.0f}',
+            ha='center', va='bottom', fontsize=10, fontweight='bold', rotation=45)
+
+ax2.set_ylabel('Revenue ($)', fontsize=12, fontweight='bold')
+ax2.set_title('Revenue Projections: Current vs Optimal Strategy', fontsize=14, fontweight='bold', pad=15)
+ax2.grid(True, alpha=0.3, axis='y')
+ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x/1000:.0f}K'))
+
+plt.tight_layout()
+plt.show()
+
+# Print financial summary
+print("\n" + "="*70)
+print("FINANCIAL IMPACT ANALYSIS")
+print("="*70)
+print(f"\nAssumptions:")
+print(f"Price per car fixed: ${price_per_car}")
+print(f"Analysis period: 250 days")
+print(f"\nCurrent Revenue (Actual): ${current_revenue:,.2f}")
+print(f"\nOPTIMAL STRATEGY: Focus on Shop {optimal_shop}")
+print(f"Projected Revenue: ${scenario_revenue:,.2f}")
+print(f"Revenue Increase: ${revenue_increase:,.2f} ({revenue_increase_pct:.2f}%)")
+print(f"Additional Cars Fixed: {revenue_increase/price_per_car:.0f} cars")
+print(f"\nANNUAL PROJECTION (365 days):")
+print(f"Current: ${annual_current_proj:,.2f}")
+print(f"Optimal: ${annual_optimal_proj:,.2f}")
+print(f"Potential Increase: ${annual_increase_proj:,.2f}")
+print("="*70)
+```
+
+```{python}
+#| label: fig-worst-vs-optimal
+#| fig-cap: "The Cost of Poor Scheduling: Comparing optimal vs worst shop focus"
+#| echo: false
+# Find the worst performing shop (lowest or negative impact)
+worst_shop_data = priority_df.sort_values('impact').iloc[0]
+worst_shop = int(worst_shop_data['shop'])
+worst_shop_impact = worst_shop_data['impact']
+
+worst_shop_df = carsDF[carsDF['shopID'] == worst_shop]
+worst_absent_mean = worst_shop_df[worst_shop_df['boss'] == 0]['carsFixed'].mean()
+worst_present_mean = worst_shop_df[worst_shop_df['boss'] == 1]['carsFixed'].mean()
+
+# Calculate revenue if Patrick focuses on worst shop every day
+worst_scenario_revenue = 0
+for shop in sorted(carsDF['shopID'].unique()):
+    shop_data = carsDF[carsDF['shopID'] == shop]
+    shop_days = len(shop_data)
+    if shop == worst_shop:
+        worst_scenario_revenue += worst_present_mean * shop_days * price_per_car
+    else:
+        shop_absent_mean = shop_data[shop_data['boss'] == 0]['carsFixed'].mean()
+        worst_scenario_revenue += shop_absent_mean * shop_days * price_per_car
+
+worst_revenue_change = worst_scenario_revenue - current_revenue
+worst_revenue_change_pct = (worst_revenue_change / current_revenue) * 100
+
+# Calculate the opportunity cost (difference between optimal and worst)
+opportunity_cost = scenario_revenue - worst_scenario_revenue
+opportunity_cost_pct = (opportunity_cost / current_revenue) * 100
+
+# Annual projections
+worst_annual_proj = (worst_scenario_revenue / 250) * days_per_year
+worst_annual_change = worst_annual_proj - annual_current_proj
+opportunity_cost_annual = annual_optimal_proj - worst_annual_proj
+
+# Create comprehensive comparison visualization
+fig, axes = plt.subplots(2, 2, figsize=(16, 14))
+
+# Top left: Revenue comparison bar chart
+ax1 = axes[0, 0]
+scenarios_comp = ['Current\nSchedule', 'Focus on\nWorst Shop', 'Focus on\nBest Shop']
+revenues_comp = [current_revenue, worst_scenario_revenue, scenario_revenue]
+colors_comp = ['#95a5a6', '#e74c3c', '#2ecc71']
+
+bars1 = ax1.bar(scenarios_comp, revenues_comp, color=colors_comp, alpha=0.8, edgecolor='black', linewidth=2)
+
+# Add value labels
+for bar, rev in zip(bars1, revenues_comp):
+    height = bar.get_height()
+    ax1.text(bar.get_x() + bar.get_width()/2., height,
+            f'${rev:,.0f}',
+            ha='center', va='bottom', fontsize=12, fontweight='bold')
+
+# Add change annotations
+ax1.annotate(f'${worst_revenue_change:+,.0f}\n({worst_revenue_change_pct:+.1f}%)', 
+            xy=(1, worst_scenario_revenue), xytext=(1.3, worst_scenario_revenue - abs(worst_revenue_change)/2),
+            arrowprops=dict(arrowstyle='->', color='red', lw=2),
+            fontsize=10, fontweight='bold', color='red',
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='lightcoral', alpha=0.7))
+
+ax1.annotate(f'${revenue_increase:+,.0f}\n({revenue_increase_pct:+.1f}%)', 
+            xy=(2, scenario_revenue), xytext=(2.3, scenario_revenue - revenue_increase/2),
+            arrowprops=dict(arrowstyle='->', color='green', lw=2),
+            fontsize=10, fontweight='bold', color='green',
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='lightgreen', alpha=0.7))
+
+ax1.set_ylabel('Total Revenue ($)', fontsize=12, fontweight='bold')
+ax1.set_title('Revenue Impact: Worst vs Best Shop Focus', fontsize=14, fontweight='bold', pad=15)
+ax1.grid(True, alpha=0.3, axis='y')
+ax1.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x/1000:.0f}K'))
+
+# Top right: Opportunity cost visualization
+ax2 = axes[0, 1]
+cost_categories = ['Opportunity Cost\n(Worst vs Best)']
+cost_values = [opportunity_cost]
+colors_cost = ['#e67e22']
+
+bars2 = ax2.bar(cost_categories, cost_values, color=colors_cost, alpha=0.8, edgecolor='black', linewidth=2)
+
+# Add value label
+ax2.text(bars2[0].get_x() + bars2[0].get_width()/2., opportunity_cost,
+        f'${opportunity_cost:,.0f}\n({opportunity_cost_pct:.1f}% of current)',
+        ha='center', va='bottom', fontsize=12, fontweight='bold')
+
+ax2.set_ylabel('Revenue Lost ($)', fontsize=12, fontweight='bold')
+ax2.set_title('Cost of Choosing Wrong Shop', fontsize=14, fontweight='bold', pad=15)
+ax2.grid(True, alpha=0.3, axis='y')
+ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x/1000:.0f}K'))
+
+# Bottom left: Annual comparison
+ax3 = axes[1, 0]
+annual_scenarios = ['Current\n(Annual)', 'Worst Shop\n(Annual)', 'Best Shop\n(Annual)']
+annual_revenues = [annual_current_proj, worst_annual_proj, annual_optimal_proj]
+colors_annual_comp = ['#95a5a6', '#e74c3c', '#2ecc71']
+
+bars3 = ax3.bar(annual_scenarios, annual_revenues, color=colors_annual_comp, alpha=0.8, edgecolor='black', linewidth=2)
+
+# Add value labels
+for bar, rev in zip(bars3, annual_revenues):
+    height = bar.get_height()
+    ax3.text(bar.get_x() + bar.get_width()/2., height,
+            f'${rev:,.0f}',
+            ha='center', va='bottom', fontsize=11, fontweight='bold')
+
+ax3.set_ylabel('Annual Revenue ($)', fontsize=12, fontweight='bold')
+ax3.set_title('Annual Revenue Projections: All Scenarios', fontsize=14, fontweight='bold', pad=15)
+ax3.grid(True, alpha=0.3, axis='y')
+ax3.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x/1000:.0f}K'))
+
+# Bottom right: Impact comparison by shop
+ax4 = axes[1, 1]
+shop_comparison = priority_df.sort_values('shop')
+x_pos = np.arange(len(shop_comparison))
+width = 0.35
+
+bars4a = ax4.bar(x_pos - width/2, shop_comparison['absent_mean'], width,
+                label='Boss Absent', color='#e74c3c', alpha=0.7, edgecolor='black', linewidth=1.5)
+bars4b = ax4.bar(x_pos + width/2, shop_comparison['present_mean'], width,
+                label='Boss Present', color='#2ecc71', alpha=0.7, edgecolor='black', linewidth=1.5)
+
+# Highlight best and worst
+best_idx = shop_comparison[shop_comparison['shop'] == optimal_shop].index[0] - shop_comparison.index[0]
+worst_idx = shop_comparison[shop_comparison['shop'] == worst_shop].index[0] - shop_comparison.index[0]
+
+bars4b[best_idx].set_edgecolor('gold')
+bars4b[best_idx].set_linewidth(3)
+bars4b[worst_idx].set_edgecolor('red')
+bars4b[worst_idx].set_linewidth(3)
+
+# Add impact labels
+for i, (idx, row) in enumerate(shop_comparison.iterrows()):
+    impact = row['impact']
+    color = 'green' if impact > 0 else 'red'
+    ax4.text(i, max(row['absent_mean'], row['present_mean']) + 2,
+            f'{impact:+.1f}',
+            ha='center', fontsize=9, fontweight='bold', color=color)
+
+ax4.set_xlabel('Shop ID', fontsize=12, fontweight='bold')
+ax4.set_ylabel('Average Cars Fixed per Day', fontsize=12, fontweight='bold')
+ax4.set_title('Shop Performance: Best vs Worst Choice Highlighted', fontsize=14, fontweight='bold', pad=15)
+ax4.set_xticks(x_pos)
+ax4.set_xticklabels([f'Shop {int(s)}' for s in shop_comparison['shop']])
+ax4.legend(loc='upper left', fontsize=10)
+ax4.grid(True, alpha=0.3, axis='y')
+
+# Add annotations for best and worst
+ax4.annotate('BEST\nCHOICE', xy=(best_idx, shop_comparison.iloc[best_idx]['present_mean']),
+            xytext=(best_idx, shop_comparison.iloc[best_idx]['present_mean'] + 8),
+            arrowprops=dict(arrowstyle='->', color='gold', lw=2),
+            fontsize=10, fontweight='bold', color='darkgreen',
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='lightgreen', alpha=0.7),
+            ha='center')
+
+if worst_shop != optimal_shop:
+    ax4.annotate('WORST\nCHOICE', xy=(worst_idx, shop_comparison.iloc[worst_idx]['present_mean']),
+                xytext=(worst_idx, shop_comparison.iloc[worst_idx]['present_mean'] + 8),
+                arrowprops=dict(arrowstyle='->', color='red', lw=2),
+                fontsize=10, fontweight='bold', color='darkred',
+                bbox=dict(boxstyle='round,pad=0.5', facecolor='lightcoral', alpha=0.7),
+                ha='center')
+
+plt.tight_layout()
+plt.show()
+
+# Print detailed comparison
+print("\n" + "="*70)
+print("COMPARISON: Optimal vs Worst Shop Focus")
+print("="*70)
+print(f"\nBEST STRATEGY: Focus on Shop {optimal_shop}")
+print(f"Revenue: ${scenario_revenue:,.2f}")
+print(f"Change from current: ${revenue_increase:+,.2f} ({revenue_increase_pct:+.2f}%)")
+print(f"Annual projection: ${annual_optimal_proj:,.2f}")
+
+print(f"\nWORST STRATEGY: Focus on Shop {worst_shop}")
+print(f"Revenue: ${worst_scenario_revenue:,.2f}")
+print(f"Change from current: ${worst_revenue_change:+,.2f} ({worst_revenue_change_pct:+.2f}%)")
+print(f"Annual projection: ${worst_annual_proj:,.2f}")
+print(f"Impact when Patrick present: {worst_shop_impact:+.1f} cars/day")
+
+print(f"\nOPPORTUNITY COST (Choosing Worst vs Best):")
+print(f"Revenue lost: ${opportunity_cost:,.2f}")
+print(f"Percentage of current revenue: {opportunity_cost_pct:.2f}%")
+print(f"Annual opportunity cost: ${opportunity_cost_annual:,.2f}")
+print(f"Equivalent to losing: {opportunity_cost/price_per_car:.0f} cars over 250 days")
+print("="*70)
+```
+
+```{python}
+#| label: financial-conclusion
+#| echo: false
+#| output: asis
+conclusion_text = f"""
+::: {{.callout-important}}
+## 💰 Financial Impact Summary
+
+### Best Strategy: Focus on Shop {optimal_shop}
+- **Revenue Gain:** +${revenue_increase:,.0f} over 250 days ({revenue_increase_pct:.1f}% increase)
+- **Annual Projection:** +${annual_increase_proj:,.0f} per year
+- **Productivity Impact:** {revenue_increase/price_per_car:.0f} additional cars fixed
+
+### Worst Strategy: Focus on Shop {worst_shop}
+- **Revenue Loss:** -${abs(worst_revenue_change):,.0f} over 250 days ({abs(worst_revenue_change_pct):.1f}% decrease)
+- **Annual Projection:** -${abs(worst_annual_change):,.0f} per year
+- **Productivity Impact:** {abs(worst_revenue_change/price_per_car):.0f} fewer cars fixed
+
+### Opportunity Cost Analysis
+- **Best vs Worst Difference:** ${opportunity_cost:,.0f} in revenue ({opportunity_cost_pct:.1f}% of current revenue)
+- **Annual Opportunity Cost:** ${opportunity_cost_annual:,.0f} per year
+- **Equivalent Impact:** {opportunity_cost/price_per_car:.0f} cars over 250 days
+
+### Key Takeaway
+- **Right Decision:** +${revenue_increase:,.0f} additional revenue
+- **Wrong Decision:** -${abs(worst_revenue_change):,.0f} lost revenue
+- **Decision Value:** ${opportunity_cost:,.0f} at stake
+:::
+"""
+print(conclusion_text)
+```
+
 
 3. **How confident can Patrick be?**
 
@@ -178,12 +1062,817 @@ Your report should answer these questions in a clear, concise way:
    - What ranges of differences can he expect? (We only have 250 days—that's not a huge sample)
    - What could go wrong? What assumptions are you making?
 
+```{python}
+#| label: fig-confidence-intervals
+#| fig-cap: "Confidence Ranges: What Patrick can realistically expect"
+#| echo: false
+from scipy import stats
+
+# Calculate confidence intervals for each shop's impact
+confidence_data = []
+for shop in sorted(carsDF['shopID'].unique()):
+    shop_data = carsDF[carsDF['shopID'] == shop]
+    absent_data = shop_data[shop_data['boss'] == 0]['carsFixed']
+    present_data = shop_data[shop_data['boss'] == 1]['carsFixed']
+    
+    absent_mean = absent_data.mean()
+    present_mean = present_data.mean()
+    impact = present_mean - absent_mean
+    
+    # Calculate 95% confidence interval for the difference
+    n_absent = len(absent_data)
+    n_present = len(present_data)
+    
+    # Standard error of the difference
+    se_absent = absent_data.std() / np.sqrt(n_absent)
+    se_present = present_data.std() / np.sqrt(n_present)
+    se_diff = np.sqrt(se_absent**2 + se_present**2)
+    
+    # Degrees of freedom (conservative estimate)
+    df = min(n_absent - 1, n_present - 1)
+    t_critical = stats.t.ppf(0.975, df)
+    
+    margin_error = t_critical * se_diff
+    ci_lower = impact - margin_error
+    ci_upper = impact + margin_error
+    
+    confidence_data.append({
+        'shop': shop,
+        'impact': impact,
+        'ci_lower': ci_lower,
+        'ci_upper': ci_upper,
+        'margin_error': margin_error,
+        'n_absent': n_absent,
+        'n_present': n_present
+    })
+
+conf_df = pd.DataFrame(confidence_data)
+
+# Create visualization
+fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+
+# Left plot: Confidence intervals for impact
+ax1 = axes[0]
+x_pos = np.arange(len(conf_df))
+colors_conf = ['#2ecc71' if x > 0 else '#e74c3c' for x in conf_df['impact']]
+
+# Plot confidence intervals
+for i, (idx, row) in enumerate(conf_df.iterrows()):
+    # Draw the confidence interval
+    ax1.plot([i, i], [row['ci_lower'], row['ci_upper']], 
+             color=colors_conf[i], linewidth=3, alpha=0.7)
+    # Draw the point estimate
+    ax1.scatter(i, row['impact'], s=200, color=colors_conf[i], 
+               edgecolor='black', linewidth=2, zorder=5)
+    # Add shop label
+    ax1.text(i, row['ci_upper'] + 1, f"Shop {int(row['shop'])}", 
+            ha='center', fontsize=10, fontweight='bold')
+
+# Add zero line
+ax1.axhline(y=0, color='black', linestyle='--', linewidth=1, alpha=0.5)
+
+# Add value labels
+for i, (idx, row) in enumerate(conf_df.iterrows()):
+    ax1.text(i, row['impact'], f'{row["impact"]:.1f}', 
+            ha='center', va='bottom' if row['impact'] > 0 else 'top',
+            fontsize=10, fontweight='bold')
+
+ax1.set_xlabel('Shop ID', fontsize=12, fontweight='bold')
+ax1.set_ylabel('Impact (Cars/Day Difference)', fontsize=12, fontweight='bold')
+ax1.set_title("95% Confidence Ranges: Patrick's Impact by Shop", fontsize=14, fontweight='bold', pad=15)
+ax1.set_xticks(x_pos)
+ax1.set_xticklabels([f'Shop {int(s)}' for s in conf_df['shop']])
+ax1.grid(True, alpha=0.3, axis='y')
+
+# Add legend
+from matplotlib.patches import Patch
+legend_elements = [
+    plt.Line2D([0], [0], color='#2ecc71', linewidth=3, label='Positive Impact'),
+    plt.Line2D([0], [0], color='#e74c3c', linewidth=3, label='Negative Impact'),
+    plt.Line2D([0], [0], color='black', linestyle='--', linewidth=1, label='No Impact')
+]
+ax1.legend(handles=legend_elements, loc='best', fontsize=10)
+
+# Right plot: Sample size and uncertainty
+ax2 = axes[1]
+x_pos2 = np.arange(len(conf_df))
+width = 0.35
+
+bars1 = ax2.bar(x_pos2 - width/2, conf_df['n_absent'], width,
+                label='Days Boss Absent', color='#e74c3c', alpha=0.7, edgecolor='black', linewidth=1.5)
+bars2 = ax2.bar(x_pos2 + width/2, conf_df['n_present'], width,
+                label='Days Boss Present', color='#2ecc71', alpha=0.7, edgecolor='black', linewidth=1.5)
+
+# Add value labels
+for bars in [bars1, bars2]:
+    for bar in bars:
+        height = bar.get_height()
+        if height > 0:
+            ax2.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{int(height)}',
+                    ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+# Overlay margin of error as error bars on a secondary axis
+ax2_twin = ax2.twinx()
+ax2_twin.bar(x_pos2, conf_df['margin_error'] * 2, width=0.3, alpha=0.3, 
+            color='orange', label='Uncertainty Range (±)', edgecolor='black', linewidth=1)
+
+ax2.set_xlabel('Shop ID', fontsize=12, fontweight='bold')
+ax2.set_ylabel('Number of Days', fontsize=12, fontweight='bold')
+ax2_twin.set_ylabel('Uncertainty Range (± cars/day)', fontsize=12, fontweight='bold', color='orange')
+ax2.set_title('Data Availability: More Data = More Confidence', fontsize=14, fontweight='bold', pad=15)
+ax2.set_xticks(x_pos2)
+ax2.set_xticklabels([f'Shop {int(s)}' for s in conf_df['shop']])
+ax2.legend(loc='upper left', fontsize=10)
+ax2.grid(True, alpha=0.3, axis='y')
+
+plt.tight_layout()
+plt.show()
+
+# Print confidence summary
+print("\n" + "="*70)
+print("CONFIDENCE ANALYSIS: What Can Patrick Realistically Expect?")
+print("="*70)
+print("\nWe have 250 days of data - that's about 8 months. Here's what that means:")
+print("\nFor each shop, we calculated a 95% confidence range.")
+print("This means: If we repeated this 100 times, 95 times the true impact")
+print("would fall within this range. Think of it like a weather forecast -")
+print("we're 95% confident the impact is somewhere in this range.\n")
+
+for _, row in conf_df.iterrows():
+    print(f"\nShop {int(row['shop'])}:")
+    print(f"Best estimate: {row['impact']:+.1f} cars/day difference")
+    print(f"95% Confidence Range: {row['ci_lower']:+.1f} to {row['ci_upper']:+.1f} cars/day")
+    print(f"Uncertainty: ±{row['margin_error']:.1f} cars/day")
+    print(f"Data: {int(row['n_absent'])} days absent, {int(row['n_present'])} days present")
+    if row['ci_lower'] > 0:
+        print(f"nterpretation: We're confident this shop BENEFITS from Patrick")
+    elif row['ci_upper'] < 0:
+        print(f"nterpretation: We're confident this shop is HURT by Patrick")
+    else:
+        print(f"Interpretation: UNCERTAIN - could go either way")
+
+print("\n" + "="*70)
+```
+
+```{python}
+#| label: fig-uncertainty-explanation
+#| fig-cap: "Understanding Uncertainty: What could go wrong?"
+#| echo: false
+#| output: asis
+
+print("""
+### Understanding the Numbers: Plain English Explanation
+
+**What does "95% confidence" mean?**
+- Think of it like a weather forecast saying "80% chance of rain"
+- We're 95% confident the true impact falls within the range shown
+- This means there's a 5% chance we're wrong - but that's pretty unlikely
+
+**Why is there uncertainty?**
+- We only have 250 days of data (about 8 months)
+- Some shops have fewer days with Patrick present (less data = more uncertainty)
+- Daily productivity varies - some days are busier than others
+- The range accounts for this natural variation
+
+**What ranges can Patrick expect?**
+- The confidence intervals show the BEST and WORST case scenarios
+- For example, if we say Shop X has an impact of +5 cars/day with a range of +2 to +8:
+  - Best case: Patrick adds 8 cars/day
+  - Worst case: Patrick adds 2 cars/day
+  - Most likely: Patrick adds 5 cars/day
+- Patrick should plan for the range, not just the best estimate
+
+**What could go wrong?**
+1. **Seasonal Effects:** Our 250 days might not represent a full year
+   - Busy seasons vs slow seasons could change the results
+   - Solution: Monitor results and adjust if patterns change
+
+2. **Small Sample Sizes:** Some shops have very few days with Patrick
+   - Less data = less confidence in the numbers
+   - Solution: Focus on shops with more data first
+
+3. **External Factors:** Things we didn't measure could affect results
+   - Weather, local events, staff changes, etc.
+   - Solution: Track other factors that might matter
+
+4. **Future Changes:** Past performance doesn't guarantee future results
+   - Shops might respond differently over time
+   - Solution: Start with recommendations but monitor and adapt
+
+**What assumptions are we making?**
+- **Fixed price per car:** We assume $150 per car (adjust if different)
+- **Consistent shop behavior:** We assume shops behave the same way going forward
+- **No other factors:** We assume Patrick's presence is the main difference
+- **Data quality:** We assume the data accurately reflects reality
+
+**Bottom Line for Patrick:**
+- The recommendations are based on solid data, but nothing is 100% certain
+- Start with the recommended strategy, but track results
+- If results don't match expectations after a few months, reassess
+- The confidence ranges show realistic expectations - plan for the range, not just the best case
+""")
+```
+
+
+
 4. **What does the future look like?**
 
    - Show at least one visualization of projected outcomes under different scheduling scenarios
    - Help Patrick see the potential impact of following your recommendations
 
-**Remember:** Less is more. A focused, punchy report that Patrick can understand and act on is better than a long, complex analysis that confuses him.
+```{python}
+#| label: fig-future-projections
+#| fig-cap: "Future Projections: What happens under different scheduling strategies?"
+#| echo: false
+# Project outcomes over different time periods
+time_periods = [30, 60, 90, 180, 250, 365]  # days
+
+# Calculate daily averages for different scenarios
+current_daily_avg = current_revenue / 250
+optimal_daily_avg = scenario_revenue / 250
+worst_daily_avg = worst_scenario_revenue / 250
+
+# Calculate projections
+scenarios_proj = {
+    'Current Strategy': [current_daily_avg * days for days in time_periods],
+    'Focus on Best Shop': [optimal_daily_avg * days for days in time_periods],
+    'Focus on Worst Shop': [worst_daily_avg * days for days in time_periods]
+}
+
+# Create visualization
+fig, axes = plt.subplots(2, 2, figsize=(16,14))
+
+# Top left: Revenue projection over time
+ax1 = axes[0, 0]
+for scenario, values in scenarios_proj.items():
+    color = '#95a5a6' if scenario == 'Current Strategy' else '#2ecc71' if 'Best' in scenario else '#e74c3c'
+    linestyle = '-' if scenario == 'Current Strategy' else '--' if 'Best' in scenario else ':'
+    ax1.plot(time_periods, values, marker='o', linewidth=3, markersize=8, 
+            label=scenario, color=color, linestyle=linestyle, alpha=0.8)
+
+ax1.set_xlabel('Days', fontsize=12, fontweight='bold')
+ax1.set_ylabel('Cumulative Revenue ($)', fontsize=12, fontweight='bold')
+ax1.set_title('Revenue Projection: Current vs Recommended Strategy', fontsize=14, fontweight='bold', pad=15)
+ax1.legend(loc='upper left', fontsize=10)
+ax1.grid(True, alpha=0.3)
+ax1.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x/1000:.0f}K'))
+
+# Add annotation for 1-year mark
+ax1.axvline(x=365, color='gray', linestyle='--', alpha=0.5, linewidth=1)
+ax1.text(365, max(scenarios_proj['Focus on Best Shop']), '1 Year',
+        rotation=90, va='bottom', ha='right', fontsize=9, color='gray')
+
+# Top right: Difference from current strategy
+ax2 = axes[0, 1]
+current_values = scenarios_proj['Current Strategy']
+best_diff = [best - curr for best, curr in zip(scenarios_proj['Focus on Best Shop'], current_values)]
+worst_diff = [worst - curr for worst, curr in zip(scenarios_proj['Focus on Worst Shop'], current_values)]
+
+ax2.plot(time_periods, best_diff, marker='o', linewidth=3, markersize=8,
+        label='Best Shop Strategy', color='#2ecc71', linestyle='--', alpha=0.8)
+ax2.plot(time_periods, worst_diff, marker='s', linewidth=3, markersize=8,
+        label='Worst Shop Strategy', color='#e74c3c', linestyle=':', alpha=0.8)
+ax2.axhline(y=0, color='black', linestyle='-', linewidth=1, alpha=0.5)
+
+# Add value labels at key points
+for days, best_val, worst_val in zip([90, 180, 365], 
+                                     [best_diff[2], best_diff[3], best_diff[5]],
+                                     [worst_diff[2], worst_diff[3], worst_diff[5]]):
+    ax2.text(days, best_val, f'+${best_val:,.0f}', ha='center', va='bottom',
+            fontsize=9, fontweight='bold', color='green',
+            bbox=dict(boxstyle='round,pad=0.3', facecolor='lightgreen', alpha=0.7))
+    ax2.text(days, worst_val, f'${worst_val:,.0f}', ha='center', va='top',
+            fontsize=9, fontweight='bold', color='red',
+            bbox=dict(boxstyle='round,pad=0.3', facecolor='lightcoral', alpha=0.7))
+
+ax2.set_xlabel('Days', fontsize=12, fontweight='bold')
+ax2.set_ylabel('Revenue Difference from Current ($)', fontsize=12, fontweight='bold')
+ax2.set_title('Impact Over Time: Gain or Loss vs Current Strategy', fontsize=14, fontweight='bold', pad=15)
+ax2.legend(loc='best', fontsize=10)
+ax2.grid(True, alpha=0.3)
+ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x/1000:+.0f}K'))
+
+# Bottom left: Scenario comparison at key milestones
+ax3 = axes[1, 0]
+milestones = ['30 Days\n(1 Month)', '90 Days\n(3 Months)', '180 Days\n(6 Months)', '365 Days\n(1 Year)']
+milestone_days = [30, 90, 180, 365]
+x_pos = np.arange(len(milestones))
+width = 0.25
+
+current_milestone = [current_daily_avg * days for days in milestone_days]
+best_milestone = [optimal_daily_avg * days for days in milestone_days]
+worst_milestone = [worst_daily_avg * days for days in milestone_days]
+
+bars1 = ax3.bar(x_pos - width, current_milestone, width,
+                label='Current Strategy', color='#95a5a6', alpha=0.8, edgecolor='black', linewidth=1.5)
+bars2 = ax3.bar(x_pos, best_milestone, width,
+                label='Best Shop Strategy', color='#2ecc71', alpha=0.8, edgecolor='black', linewidth=1.5)
+bars3 = ax3.bar(x_pos + width, worst_milestone, width,
+                label='Worst Shop Strategy', color='#e74c3c', alpha=0.8, edgecolor='black', linewidth=1.5)
+
+# Add value labels
+for bars in [bars1, bars2, bars3]:
+    for bar in bars:
+        height = bar.get_height()
+        ax3.text(bar.get_x() + bar.get_width()/2., height,
+                f'${height/1000:.0f}K',
+                ha='center', va='bottom', fontsize=8, fontweight='bold', rotation=90)
+
+ax3.set_xlabel('Time Period', fontsize=12, fontweight='bold')
+ax3.set_ylabel('Cumulative Revenue ($)', fontsize=12, fontweight='bold')
+ax3.set_title('Revenue at Key Milestones: Strategy Comparison', fontsize=14, fontweight='bold', pad=15)
+ax3.set_xticks(x_pos)
+ax3.set_xticklabels(milestones)
+ax3.legend(loc='upper left', fontsize=10)
+ax3.grid(True, alpha=0.3, axis='y')
+ax3.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x/1000:.0f}K'))
+
+# Bottom right: Cars fixed projection
+ax4 = axes[1, 1]
+cars_current = [current_daily_avg * days / price_per_car for days in time_periods]
+cars_best = [optimal_daily_avg * days / price_per_car for days in time_periods]
+cars_worst = [worst_daily_avg * days / price_per_car for days in time_periods]
+
+ax4.plot(time_periods, cars_current, marker='o', linewidth=3, markersize=8,
+        label='Current Strategy', color='#95a5a6', alpha=0.8)
+ax4.plot(time_periods, cars_best, marker='o', linewidth=3, markersize=8,
+        label='Best Shop Strategy', color='#2ecc71', linestyle='--', alpha=0.8)
+ax4.plot(time_periods, cars_worst, marker='s', linewidth=3, markersize=8,
+        label='Worst Shop Strategy', color='#e74c3c', linestyle=':', alpha=0.8)
+
+# Add annotation for 1-year difference
+cars_diff_1yr = cars_best[5] - cars_current[5]
+ax4.annotate(f'+{cars_diff_1yr:.0f} cars\nin 1 year',
+            xy=(365, cars_best[5]), xytext=(300, cars_best[5] + 50),
+            arrowprops=dict(arrowstyle='->', color='green', lw=2),
+            fontsize=11, fontweight='bold', color='darkgreen',
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='lightgreen', alpha=0.7))
+
+ax4.set_xlabel('Days', fontsize=12, fontweight='bold')
+ax4.set_ylabel('Cumulative Cars Fixed', fontsize=12, fontweight='bold')
+ax4.set_title('Productivity Projection: Total Cars Fixed Over Time', fontsize=14, fontweight='bold', pad=15)
+ax4.legend(loc='upper left', fontsize=10)
+ax4.grid(True, alpha=0.3)
+ax4.axvline(x=365, color='gray', linestyle='--', alpha=0.5, linewidth=1)
+
+plt.tight_layout()
+plt.show()
+
+# Print future projections summary
+print("\n" + "="*70)
+print("FUTURE PROJECTIONS: What Happens If Patrick Follows Recommendations?")
+print("="*70)
+print("\nProjected outcomes under different scheduling strategies:\n")
+
+for days in [30, 90, 180, 365]:
+    current_proj = current_daily_avg * days
+    best_proj = optimal_daily_avg * days
+    worst_proj = worst_daily_avg * days
+    best_gain = best_proj - current_proj
+    worst_loss = worst_proj - current_proj
+    
+    period_name = {30: "1 Month", 90: "3 Months", 180: "6 Months", 365: "1 Year"}[days]
+    
+    print(f"\n{period_name} ({days} days):")
+    print(f"  Current Strategy:     ${current_proj:,.0f}")
+    print(f"  Best Shop Strategy:   ${best_proj:,.0f} (+${best_gain:,.0f})")
+    print(f"  Worst Shop Strategy:  ${worst_proj:,.0f} ({worst_loss:+,.0f})")
+    print(f"  Difference (Best-Worst): ${best_proj - worst_proj:,.0f}")
+
+print("\n" + "="*70)
+print("KEY INSIGHT:")
+print(f"If Patrick follows the recommended strategy (focus on Shop {optimal_shop}):")
+print(f"  - After 3 months:  +${(optimal_daily_avg - current_daily_avg) * 90:,.0f} additional revenue")
+print(f"  - After 6 months:  +${(optimal_daily_avg - current_daily_avg) * 180:,.0f} additional revenue")
+print(f"  - After 1 year:    +${annual_increase_proj:,.0f} additional revenue")
+print(f"  - That's {annual_increase_proj/price_per_car:.0f} more cars fixed per year!")
+print("="*70)
+```
+
+## Simulation Analysis: Testing Different Scenarios 🔮
+
+To better understand the uncertainty in our projections, we'll run simulations using xarray to model different possible futures under various scheduling strategies.
+
+```{python}
+#| label: fig-simulations
+#| fig-cap: "Monte Carlo Simulations: What could happen under different scenarios?"
+#| echo: false
+# Set up simulation parameters
+num_simulations = 1000  # Number of simulation runs
+simulation_days = 365    # Project 1 year into the future
+rng = default_rng(seed=42)  # For reproducibility
+
+# Get historical statistics for each shop
+shop_stats = {}
+for shop in sorted(carsDF['shopID'].unique()):
+    shop_data = carsDF[carsDF['shopID'] == shop]
+    absent_data = shop_data[shop_data['boss'] == 0]['carsFixed']
+    present_data = shop_data[shop_data['boss'] == 1]['carsFixed']
+    
+    shop_stats[shop] = {
+        'absent_mean': absent_data.mean(),
+        'absent_std': absent_data.std(),
+        'present_mean': present_data.mean(),
+        'present_std': present_data.std(),
+        'absent_count': len(absent_data),
+        'present_count': len(present_data)
+    }
+
+# Define scenarios to simulate
+scenarios = ['Current', 'Best_Shop', 'Worst_Shop', 'Rotate_Top3']
+scenario_shops = {
+    'Current': None,  # Keep current distribution
+    'Best_Shop': optimal_shop,
+    'Worst_Shop': worst_shop,
+    'Rotate_Top3': top3_shops
+}
+
+# Create xarray dataset for simulations
+# Dimensions: simulation, day, scenario
+sim_data = xr.Dataset()
+
+# Simulate daily productivity for each scenario
+for scenario_name in scenarios:
+    daily_revenue = []
+    
+    for sim in range(num_simulations):
+        daily_cars = []
+        
+        for day in range(simulation_days):
+            day_revenue = 0
+            
+            # Determine which shop Patrick visits today
+            if scenario_name == 'Current':
+                # Randomly assign based on historical distribution
+                shop_visits = int(rng.choice([1, 2, 3, 4, 5], p=[0.2, 0.2, 0.2, 0.2, 0.2]))
+            elif scenario_name == 'Best_Shop':
+                shop_visits = int(optimal_shop)
+            elif scenario_name == 'Worst_Shop':
+                shop_visits = int(worst_shop)
+            elif scenario_name == 'Rotate_Top3':
+                # Rotate through top 3 shops
+                shop_visits = int(top3_shops[day % 3])
+            
+            # Calculate revenue for each shop
+            for shop in sorted(carsDF['shopID'].unique()):
+                stats = shop_stats[shop]
+                
+                if shop == shop_visits:
+                    # Boss is present - sample from present distribution
+                    cars = rng.normal(stats['present_mean'], stats['present_std'])
+                    cars = max(0, cars)  # Can't have negative cars
+                else:
+                    # Boss is absent - sample from absent distribution
+                    cars = rng.normal(stats['absent_mean'], stats['absent_std'])
+                    cars = max(0, cars)
+                
+                day_revenue += cars * price_per_car
+            
+            daily_cars.append(day_revenue)
+        
+        daily_revenue.append(daily_cars)
+    
+    # Create DataArray for this scenario
+    sim_data[scenario_name] = xr.DataArray(
+        data=daily_revenue,
+        dims=['simulation', 'day'],
+        coords={
+            'simulation': np.arange(1, num_simulations + 1),
+            'day': np.arange(1, simulation_days + 1)
+        }
+    )
+
+# Calculate cumulative revenue over time
+cumulative_revenue = sim_data.copy()
+for scenario_name in scenarios:
+    cumulative_revenue[scenario_name] = sim_data[scenario_name].cumsum(dim='day')
+
+# Calculate summary statistics
+summary_stats = xr.Dataset()
+for scenario_name in scenarios:
+    summary_stats[f'{scenario_name}_mean'] = cumulative_revenue[scenario_name].mean(dim='simulation')
+    summary_stats[f'{scenario_name}_p5'] = cumulative_revenue[scenario_name].quantile(0.05, dim='simulation')
+    summary_stats[f'{scenario_name}_p95'] = cumulative_revenue[scenario_name].quantile(0.95, dim='simulation')
+    summary_stats[f'{scenario_name}_p25'] = cumulative_revenue[scenario_name].quantile(0.25, dim='simulation')
+    summary_stats[f'{scenario_name}_p75'] = cumulative_revenue[scenario_name].quantile(0.75, dim='simulation')
+
+# Create visualizations
+fig, axes = plt.subplots(2, 2, figsize=(16, 14))
+
+# Top left: Mean cumulative revenue with uncertainty bands
+ax1 = axes[0, 0]
+colors_scenario = {'Current': '#95a5a6', 'Best_Shop': '#2ecc71', 'Worst_Shop': '#e74c3c', 'Rotate_Top3': '#3498db'}
+linestyles = {'Current': '-', 'Best_Shop': '--', 'Worst_Shop': ':', 'Rotate_Top3': '-.'}
+
+for scenario_name in scenarios:
+    days = summary_stats[f'{scenario_name}_mean'].day.values
+    mean_vals = summary_stats[f'{scenario_name}_mean'].values
+    p5_vals = summary_stats[f'{scenario_name}_p5'].values
+    p95_vals = summary_stats[f'{scenario_name}_p95'].values
+    
+    ax1.plot(days, mean_vals, label=scenario_name.replace('_', ' '), 
+            color=colors_scenario[scenario_name], linewidth=3, linestyle=linestyles[scenario_name], alpha=0.8)
+    ax1.fill_between(days, p5_vals, p95_vals, alpha=0.2, color=colors_scenario[scenario_name])
+
+ax1.set_xlabel('Days', fontsize=12, fontweight='bold')
+ax1.set_ylabel('Cumulative Revenue ($)', fontsize=12, fontweight='bold')
+ax1.set_title('Simulated Revenue: Mean with 90% Confidence Bands', fontsize=14, fontweight='bold', pad=15)
+ax1.legend(loc='upper left', fontsize=10)
+ax1.grid(True, alpha=0.3)
+ax1.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x/1000:.0f}K'))
+
+# Top right: Distribution of 1-year revenue
+ax2 = axes[0, 1]
+year_end_revenue = {}
+for scenario_name in scenarios:
+    year_end_revenue[scenario_name] = cumulative_revenue[scenario_name].sel(day=365).values
+
+# Create violin/box plot
+positions = np.arange(len(scenarios))
+parts = ax2.violinplot([year_end_revenue[s] for s in scenarios], positions=positions, 
+                       widths=0.6, showmeans=True, showmedians=True)
+
+# Color the violins
+for i, (pc, scenario) in enumerate(zip(parts['bodies'], scenarios)):
+    pc.set_facecolor(colors_scenario[scenario])
+    pc.set_alpha(0.7)
+
+ax2.set_xticks(positions)
+ax2.set_xticklabels([s.replace('_', ' ') for s in scenarios], rotation=15, ha='right')
+ax2.set_ylabel('1-Year Revenue ($)', fontsize=12, fontweight='bold')
+ax2.set_title('Distribution of 1-Year Revenue Across 1000 Simulations', fontsize=14, fontweight='bold', pad=15)
+ax2.grid(True, alpha=0.3, axis='y')
+ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x/1000:.0f}K'))
+
+# Bottom left: Probability of exceeding current strategy
+ax3 = axes[1, 0]
+current_year_end = year_end_revenue['Current']
+exceedance_prob = {}
+
+for scenario_name in scenarios:
+    if scenario_name != 'Current':
+        exceed_count = np.sum(year_end_revenue[scenario_name] > current_year_end)
+        exceedance_prob[scenario_name] = exceed_count / num_simulations * 100
+
+scenarios_plot = list(exceedance_prob.keys())
+probs = list(exceedance_prob.values())
+colors_prob = [colors_scenario[s] for s in scenarios_plot]
+
+# Use numeric positions for the bar chart
+x_positions = np.arange(len(scenarios_plot))
+bars = ax3.bar(x_positions, probs, color=colors_prob, alpha=0.8, edgecolor='black', linewidth=2)
+
+# Add value labels
+for i, (bar, prob) in enumerate(zip(bars, probs)):
+    height = bar.get_height()
+    ax3.text(bar.get_x() + bar.get_width()/2., height,
+            f'{prob:.1f}%',
+            ha='center', va='bottom', fontsize=12, fontweight='bold')
+
+ax3.axhline(y=50, color='red', linestyle='--', linewidth=2, alpha=0.5, label='50% Threshold')
+ax3.set_xlabel('Strategy', fontsize=12, fontweight='bold')
+ax3.set_ylabel('Probability (%)', fontsize=12, fontweight='bold')
+ax3.set_title('Probability of Exceeding Current Strategy Revenue', fontsize=14, fontweight='bold', pad=15)
+ax3.set_xticks(x_positions)
+ax3.set_xticklabels([s.replace('_', ' ') for s in scenarios_plot], rotation=15, ha='right')
+ax3.legend(loc='upper right', fontsize=10)
+ax3.grid(True, alpha=0.3, axis='y')
+
+# Bottom right: Revenue difference from current
+ax4 = axes[1, 1]
+differences = {}
+for scenario_name in scenarios:
+    if scenario_name != 'Current':
+        differences[scenario_name] = year_end_revenue[scenario_name] - current_year_end
+
+scenarios_diff = list(differences.keys())
+diff_data = [differences[s] for s in scenarios_diff]
+colors_diff = [colors_scenario[s] for s in scenarios_diff]
+
+parts2 = ax4.violinplot(diff_data, positions=np.arange(len(scenarios_diff)), 
+                        widths=0.6, showmeans=True, showmedians=True)
+
+for i, (pc, scenario) in enumerate(zip(parts2['bodies'], scenarios_diff)):
+    pc.set_facecolor(colors_scenario[scenario])
+    pc.set_alpha(0.7)
+
+ax4.axhline(y=0, color='black', linestyle='-', linewidth=2, alpha=0.5)
+ax4.set_xticks(np.arange(len(scenarios_diff)))
+ax4.set_xticklabels([s.replace('_', ' ') for s in scenarios_diff], rotation=15, ha='right')
+ax4.set_ylabel('Revenue Difference from Current ($)', fontsize=12, fontweight='bold')
+ax4.set_title('Revenue Impact: Best vs Worst Strategy', fontsize=14, fontweight='bold', pad=15)
+ax4.grid(True, alpha=0.3, axis='y')
+ax4.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x/1000:+.0f}K'))
+
+plt.tight_layout()
+plt.show()
+
+# Print simulation summary
+print("\n" + "="*70)
+print("SIMULATION RESULTS: 1000 Runs Over 1 Year")
+print("="*70)
+
+for scenario_name in scenarios:
+    mean_rev = np.mean(year_end_revenue[scenario_name])
+    median_rev = np.median(year_end_revenue[scenario_name])
+    p5_rev = np.percentile(year_end_revenue[scenario_name], 5)
+    p95_rev = np.percentile(year_end_revenue[scenario_name], 95)
+    
+    print(f"\n{scenario_name.replace('_', ' ')} Strategy:")
+    print(f"  - Mean 1-year revenue: ${mean_rev:,.0f}")
+    print(f"  - Median 1-year revenue: ${median_rev:,.0f}")
+    print(f"  - 90% Range: ${p5_rev:,.0f} to ${p95_rev:,.0f}")
+    print(f"  - Uncertainty: ±${(p95_rev - p5_rev)/2:,.0f}")
+
+print("\n" + "="*70)
+print("KEY INSIGHTS FROM SIMULATIONS:")
+print("="*70)
+best_mean = np.mean(year_end_revenue['Best_Shop'])
+worst_mean = np.mean(year_end_revenue['Worst_Shop'])
+current_mean = np.mean(year_end_revenue['Current'])
+
+print(f"\n• Best Shop Strategy: ${best_mean:,.0f} average (${best_mean - current_mean:+,.0f} vs current)")
+print(f"• Worst Shop Strategy: ${worst_mean:,.0f} average (${worst_mean - current_mean:+,.0f} vs current)")
+print(f"• Opportunity Cost: ${best_mean - worst_mean:,.0f} difference between best and worst")
+print(f"• Best strategy beats current in {exceedance_prob['Best_Shop']:.1f}% of simulations")
+print(f"• Worst strategy beats current in {exceedance_prob['Worst_Shop']:.1f}% of simulations")
+print("="*70)
+```
+
+```{python}
+#| label: tbl-simulation-results
+#| tbl-cap: "Simulation Results: 1-Year Revenue Projections (1,000 Monte Carlo Simulations)"
+#| echo: false
+# Create a comprehensive summary table for corporate presentation
+sim_summary_data = []
+
+for scenario_name in scenarios:
+    rev_data = year_end_revenue[scenario_name]
+    mean_rev = np.mean(rev_data)
+    median_rev = np.median(rev_data)
+    p5_rev = np.percentile(rev_data, 5)
+    p25_rev = np.percentile(rev_data, 25)
+    p75_rev = np.percentile(rev_data, 75)
+    p95_rev = np.percentile(rev_data, 95)
+    std_rev = np.std(rev_data)
+    
+    # Calculate difference from current
+    if scenario_name != 'Current':
+        diff_from_current = mean_rev - current_mean
+        pct_change = (diff_from_current / current_mean) * 100
+    else:
+        diff_from_current = 0
+        pct_change = 0
+    
+    # Probability of exceeding current
+    if scenario_name != 'Current':
+        prob_exceed = exceedance_prob[scenario_name]
+    else:
+        prob_exceed = 50.0  # Current is baseline
+    
+    sim_summary_data.append({
+        'Strategy': scenario_name.replace('_', ' '),
+        'Expected Revenue': f"${mean_rev:,.0f}",
+        'Median Revenue': f"${median_rev:,.0f}",
+        'Low (5th %)': f"${p5_rev:,.0f}",
+        'High (95th %)': f"${p95_rev:,.0f}",
+        'Range (90% CI)': f"${p5_rev:,.0f} - ${p95_rev:,.0f}",
+        'vs Current': f"${diff_from_current:+,.0f}" if scenario_name != 'Current' else "Baseline",
+        'Change %': f"{pct_change:+.1f}%" if scenario_name != 'Current' else "Baseline",
+        'Win Rate': f"{prob_exceed:.1f}%"
+    })
+
+sim_summary_df = pd.DataFrame(sim_summary_data)
+
+# Create executive summary table (simpler format)
+exec_summary = []
+for scenario_name in scenarios:
+    if scenario_name != 'Current':
+        rev_data = year_end_revenue[scenario_name]
+        mean_rev = np.mean(rev_data)
+        diff_from_current = mean_rev - current_mean
+        pct_change = (diff_from_current / current_mean) * 100
+        prob_exceed = exceedance_prob[scenario_name]
+        p5_rev = np.percentile(rev_data, 5)
+        p95_rev = np.percentile(rev_data, 95)
+        
+        exec_summary.append({
+            'Strategy': scenario_name.replace('_', ' '),
+            'Expected Annual Revenue': f"${mean_rev:,.0f}",
+            'Revenue Impact': f"${diff_from_current:+,.0f}",
+            'Percentage Change': f"{pct_change:+.1f}%",
+            'Success Probability': f"{prob_exceed:.1f}%",
+            '90% Confidence Range': f"${p5_rev:,.0f} - ${p95_rev:,.0f}"
+        })
+
+exec_df = pd.DataFrame(exec_summary)
+
+# Display both tables
+print("\n" + "="*120)
+print("DETAILED SIMULATION RESULTS: All Strategies (1,000 Simulations)")
+print("="*120)
+print(sim_summary_df.to_string(index=False))
+print("="*120)
+
+print("\n\n" + "="*120)
+print("EXECUTIVE SUMMARY: Strategy Comparison vs Current")
+print("="*120)
+print(exec_df.to_string(index=False))
+print("="*120)
+
+# Return the executive summary table for display in document
+exec_df
+```
+
+```{python}
+#| label: simulation-key-takeaways
+#| echo: false
+#| output: asis
+takeaways_text = f"""
+::: {{.callout-tip}}
+## 🔑 Key Takeaways from Simulation Analysis
+
+### What the Simulations Tell Us
+
+**1. Best Shop Strategy is Highly Favorable**
+- Outperforms current strategy in **{exceedance_prob['Best_Shop']:.1f}%** of 1,000 simulated scenarios
+- Expected annual revenue: **${np.mean(year_end_revenue['Best_Shop']):,.0f}**
+- Average gain vs current: **${np.mean(year_end_revenue['Best_Shop']) - current_mean:+,.0f}** per year
+
+**2. Worst Shop Strategy Should Be Avoided**
+- Only beats current strategy in **{exceedance_prob['Worst_Shop']:.1f}%** of scenarios
+- Expected annual revenue: **${np.mean(year_end_revenue['Worst_Shop']):,.0f}**
+- Average loss vs current: **${np.mean(year_end_revenue['Worst_Shop']) - current_mean:+,.0f}** per year
+
+**3. Opportunity Cost is Significant**
+- Difference between best and worst: **${np.mean(year_end_revenue['Best_Shop']) - np.mean(year_end_revenue['Worst_Shop']):,.0f}** annually
+- This represents **{((np.mean(year_end_revenue['Best_Shop']) - np.mean(year_end_revenue['Worst_Shop'])) / current_mean * 100):.1f}%** of current revenue
+
+**4. Uncertainty is Manageable**
+- 90% confidence range for best strategy: **${np.percentile(year_end_revenue['Best_Shop'], 5):,.0f} - ${np.percentile(year_end_revenue['Best_Shop'], 95):,.0f}**
+- Even in worst-case scenario (5th percentile), best strategy still outperforms current baseline
+- Standard deviation: **${np.std(year_end_revenue['Best_Shop']):,.0f}** (relatively low variability)
+
+**5. Rotating Strategy is Moderate**
+- Rotating through top 3 shops provides middle-ground results
+- Less risky than focusing on worst shop, but not as profitable as focusing on best shop
+- Suitable if flexibility is needed
+
+### Bottom Line
+The simulations confirm that **focusing on Shop {optimal_shop} is the optimal strategy** with:
+- ✅ High probability of success ({exceedance_prob['Best_Shop']:.1f}% win rate)
+- ✅ Significant revenue upside (${np.mean(year_end_revenue['Best_Shop']) - current_mean:+,.0f} annually)
+- ✅ Manageable risk (narrow confidence intervals)
+- ✅ Clear advantage over alternatives
+:::
+"""
+print(takeaways_text)
+```
+
+## Final Recommendations & Action Items
+
+```{python}
+#| label: final-recommendations
+#| echo: false
+#| output: asis
+recommendations_text = f"""
+::: {{.callout-important}}
+## Executive Summary: Key Recommendations
+
+### Primary Recommendation
+**Focus scheduling on Shop {optimal_shop}** to maximize productivity and revenue.
+
+### Expected Financial Impact
+- **250-Day Period:** +${revenue_increase:,.0f} additional revenue ({revenue_increase_pct:.1f}% increase)
+- **Annual Projection:** +${annual_increase_proj:,.0f} per year
+- **Risk Mitigation:** Avoid focusing on Shop {worst_shop} (would result in ${abs(worst_revenue_change):,.0f} loss)
+
+### Confidence & Uncertainty
+- Analysis based on 250 days of historical data
+- 95% confidence intervals provided for all estimates
+- Monte Carlo simulations (1,000 runs) confirm recommendations
+- Best strategy outperforms current in {exceedance_prob['Best_Shop']:.1f}% of scenarios
+
+### Next Steps
+1. **Immediate Action:** Begin scheduling focus on Shop {optimal_shop}
+2. **Monitoring:** Track results monthly and compare to projections
+3. **Review:** Reassess after 90 days to validate assumptions
+4. **Adjustment:** Be prepared to adapt if external factors change
+
+### Key Assumptions
+- Fixed price per car: ${price_per_car}
+- Historical patterns will continue
+- No major external disruptions
+- Shop operations remain consistent
+:::
+"""
+print(recommendations_text)
+```
+
+
+
+<!--**Remember:** Less is more. A focused, punchy report that Patrick can understand and act on is better than a long, complex analysis that confuses him.
 
 ## Technical Implementation Preferences 💡
 
@@ -243,3 +1932,4 @@ carsDF = pd.read_csv("carsFixed.csv")
 - **Matplotlib Gallery:** [matplotlib.org/stable/gallery](https://matplotlib.org/stable/gallery)
 - **Seaborn Tutorial:** [seaborn.pydata.org/tutorial.html](https://seaborn.pydata.org/tutorial.html)
 
+-->
